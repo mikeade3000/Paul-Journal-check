@@ -245,6 +245,24 @@ form label{display:block;font-size:14px;font-weight:600;margin:16px 0 6px;color:
 .empty{border:1px dashed var(--rule);border-radius:8px;padding:40px;text-align:center;background:var(--paper)}
 .empty h3{font-size:24px}
 
+/* Journal side menu */
+.jmenu{padding:10px 0;overflow:hidden}
+.jmenu h3{font-size:19px;padding:10px 24px 8px;margin:0}
+.jmenu ul{list-style:none;margin:0;padding:0}
+.jmenu a{display:block;padding:9px 24px 9px 21px;border-left:3px solid transparent;color:var(--text);text-decoration:none;font-size:15px;line-height:1.35}
+.jmenu li + li a{border-top:1px solid var(--paper)}
+.jmenu a:hover{background:var(--paper);color:var(--jc)}
+.jmenu a[aria-current="page"]{border-left-color:var(--jc);background:var(--paper);color:var(--jc);font-weight:600}
+.jmenu-m{display:none;margin-bottom:28px}
+.jmenu-m label{display:block;font-size:14px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.policy h2{font-size:30px;margin-top:0}
+.policy .upd{font-family:var(--sans);font-size:14px;color:var(--muted);margin-top:-10px;margin-bottom:24px}
+.fee{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin:18px 0 26px;font-family:var(--sans)}
+.fee div{border:1px solid var(--rule);border-radius:6px;padding:16px 18px}
+.fee b{display:block;font-family:var(--serif);font-weight:400;font-size:24px;color:var(--ink)}
+.fee span{font-size:14px;color:var(--muted)}
+@media (max-width:1020px){.jmenu-m{display:block}}
+
 /* Article page */
 .a-wrap{padding:48px 0 88px}
 .a-wrap h1{font-family:var(--display);font-size:clamp(30px,3.8vw,46px);line-height:1.12;max-width:26ch}
@@ -384,6 +402,9 @@ const JOURNALS = [
     blurb: "A peer-reviewed journal for scholarly exchange, critical legal discourse and innovative research on the issues shaping law, governance and development in Africa and beyond.",
     scope: ["Constitutional Law","Human Rights Law","Environmental Law","International Law","Jurisprudence","Criminal Law and Justice","Commercial and Corporate Law","Technology, Digital Law and Cybersecurity","Natural Resources and Energy Law","Comparative and African Legal Systems"],
     cfp: "Volume 2, Issue 2",
+    apc: { amount: "", waiver: "" },   // SAMPLE — e.g. amount: "USD 150 / NGN 150,000"
+    indexing: [],                      // e.g. ["Google Scholar", "Crossref"] — list only confirmed services
+    email: "",                         // journal-specific email; falls back to the publisher's
     board: [ // SAMPLE names
       {role:"Editor-in-Chief", name:"Prof. Adaeze Okonkwo", affil:"Faculty of Law"},
       {role:"Deputy Editor", name:"Dr. Samuel Mugisha", affil:"School of Law"},
@@ -429,6 +450,9 @@ const JOURNALS = [
     blurb: "Scholarship at the intersection of public health law, environmental law, human rights and sustainable governance in Africa.",
     scope: ["Public Health Law","Environmental Law","Human Rights and Justice","Policy, Governance and Sustainability","Climate Change Law","Pharmaceutical and Health Systems Regulation","Water, Sanitation and Pollution Control"],
     cfp: "Volume 2, Issue 1",
+    apc: { amount: "", waiver: "" },
+    indexing: [],
+    email: "",
     board: [ // SAMPLE names
       {role:"Editor-in-Chief", name:"Prof. Grace Achieng", affil:"School of Public Health and Law"},
       {role:"Associate Editor", name:"Dr. Ibrahim Sesay", affil:"Faculty of Law"},
@@ -683,8 +707,123 @@ function pageSearch(q){
 
 /* ---------------- Journal sites ---------------- */
 function journalTabs(j){
-  const first = j.layout === "core" ? [["", "Latest issue"]] : [["", "Home"], ["issue", "Latest issue"]];
-  return [...first, ["archive", "All issues"], ["about", "About"], ["board", "Editorial board"], ["submit", "Submit"]];
+  const first = j.layout === "core" ? [["", "Current issue"]] : [["", "Home"], ["issue", "Current issue"]];
+  return [...first, ["archive", "Archives"], ["about", "About"], ["board", "Editorial team"], ["submit", "Submit"]];
+}
+/* Right-hand journal menu. Each page has default text; override any page for one journal
+   with journal.pages = { "apc": "<p>Your own HTML…</p>" }. */
+const JMENU = [
+  ["issue","Current Issue"],["archive","Archives"],["about","About the Journal"],["scope","Focus and Scope"],
+  ["guidelines","Authors' Guidelines"],["peer-review","Peer Review Process"],["publication-policy","Publication Policy"],
+  ["ethics","Publishing Ethics Statement"],["ai-policy","Generative AI Policy"],["apc","Article Processing Charges"],
+  ["board","Editorial Team"],["indexing","Abstracting and Indexing"],["open-access","Open Access Policy"],
+  ["copyright","Copyright and Licensing"],["plagiarism","Plagiarism Policy"],["errata","Errata and Corrigendum"],["contact","Contact Us"]
+];
+const jEmail = j => j.email || PUBLISHER.email;
+const menuKey = (j, tab) => tab.startsWith("issue-") ? "archive" : (tab === "" && j.layout === "core") ? "issue" : tab;
+function jMenu(j, tab){
+  const cur = menuKey(j, tab);
+  return `<nav class="card jmenu" aria-label="${esc(j.short)} journal menu"><h3>Journal menu</h3><ul>${
+    JMENU.map(([k,l]) => `<li><a href="#/j/${j.id}/${k}" ${k===cur?'aria-current="page"':""}>${l}</a></li>`).join("")}</ul></nav>`;
+}
+function jMenuMobile(j, tab){
+  const cur = menuKey(j, tab);
+  return `<div class="jmenu-m"><label for="jm">Journal menu</label><select id="jm" onchange="go('#/j/${j.id}/'+this.value)">
+    ${cur && JMENU.some(([k]) => k===cur) ? "" : `<option value="" selected>Choose a page</option>`}
+    ${JMENU.map(([k,l]) => `<option value="${k}" ${k===cur?"selected":""}>${l}</option>`).join("")}</select></div>`;
+}
+const POL = (title, body) => `<div class="prose policy"><h2>${title}</h2>${body}</div>`;
+function policyPage(j, key){
+  if (j.pages && j.pages[key]) return POL(esc((JMENU.find(m => m[0]===key)||[,""])[1]), j.pages[key]);
+  const T = `<i>${esc(j.title)}</i>`, mail = `<a href="mailto:${jEmail(j)}">${esc(jEmail(j))}</a>`;
+  switch(key){
+  case "scope": return POL("Focus and Scope", `<p>${esc(j.blurb)}</p>
+    <p>${T} publishes original research articles, case notes, legislative comments and book reviews in the following areas:</p>
+    <ul>${j.scope.map(s => `<li>${esc(s)}</li>`).join("")}</ul>
+    <p>The journal welcomes doctrinal, comparative, empirical, socio-legal and interdisciplinary work, and particularly encourages scholarship that engages with African legal systems, institutions and communities. Manuscripts outside this scope are returned to authors without review.</p>`);
+  case "guidelines": return POL("Authors' Guidelines", `
+    <h3>Types of submission</h3><ul><li>Research articles: 8,000–12,000 words, including footnotes.</li><li>Case notes and legislative comments: 3,000–5,000 words.</li><li>Book reviews: 1,500–3,000 words.</li></ul>
+    <h3>Preparing the manuscript</h3><ul>
+      <li>Submit in Microsoft Word format, A4, 12-point Times New Roman, 1.5 line spacing.</li>
+      <li>Include an abstract of up to 250 words and four to six keywords.</li>
+      <li>Remove the author's name, affiliation and any self-identifying references from the manuscript file.</li>
+      <li>Provide a separate title page with the title, each author's name, affiliation, email, ORCID iD and a biography of up to 60 words.</li>
+      <li>Use footnotes, following the Oxford University Standard for the Citation of Legal Authorities (OSCOLA), 4th edition.</li>
+      <li>Use British English spelling consistently.</li></ul>
+    <h3>Declarations</h3><p>Authors must confirm that the work is original, is not under consideration elsewhere, declare any conflict of interest and funding, and disclose any use of generative AI tools in line with the <a href="#/j/${j.id}/ai-policy">Generative AI Policy</a>.</p>
+    <p><a class="btn btn-j" href="#/j/${j.id}/submit">Submit a manuscript</a></p>`);
+  case "peer-review": return POL("Peer Review Process", `
+    <p>${T} operates a double-blind peer review process: reviewers do not know the identity of authors, and authors do not know the identity of reviewers.</p>
+    <ol class="steps">
+      <li><b>Initial assessment</b>The editors check each submission for scope, originality, anonymisation and similarity, normally within two weeks. Some manuscripts are declined at this stage.</li>
+      <li><b>External review</b>Manuscripts that pass initial assessment are sent to at least two independent reviewers with expertise in the subject.</li>
+      <li><b>Decision</b>Based on the reports, the editors decide to accept, request minor or major revisions, or reject. Most decisions are reached within eight to twelve weeks of submission.</li>
+      <li><b>Revision</b>Authors revise and respond to each comment. Revised manuscripts may be returned to the reviewers.</li>
+      <li><b>Final acceptance</b>The Editor-in-Chief makes the final decision, which is communicated with the reviewers' comments.</li></ol>
+    <p>Case notes and book reviews are reviewed by the editorial team. Editors do not handle manuscripts in which they have a conflict of interest; submissions by members of the editorial team are handled independently by another editor.</p>`);
+  case "publication-policy": return POL("Publication Policy", `
+    <p>${T} is published ${esc(j.frequency.toLowerCase())} by ${esc(PUBLISHER.name)} in online and print editions. Accepted articles may be published online ahead of their assignment to an issue.</p>
+    <ul><li>Only original work that has not been published and is not under consideration elsewhere is accepted. Posting a preprint on a non-commercial repository does not count as prior publication.</li>
+      <li>Every article is assigned to a volume and issue and paginated consecutively within the volume.</li>
+      <li>Published articles are not altered. Changes are made only through a formal correction, as set out in the <a href="#/j/${j.id}/errata">Errata and Corrigendum</a> policy.</li>
+      <li>Articles are archived permanently and remain freely available on this site.</li>
+      <li>The views expressed in articles are those of the authors and not of the editors or the publisher.</li></ul>`);
+  case "ethics": return POL("Publishing Ethics Statement", `
+    <p>${T} is committed to the highest standards of publication ethics and follows the Core Practices of the Committee on Publication Ethics (COPE).</p>
+    <h3>Duties of authors</h3><ul><li>Submit original work and acknowledge all sources properly.</li><li>List as authors only those who made a substantial contribution, and acknowledge others.</li><li>Disclose funding and any conflict of interest.</li><li>Notify the editors promptly of any significant error found after submission or publication.</li></ul>
+    <h3>Duties of editors</h3><ul><li>Evaluate manuscripts on their scholarly merit alone, without regard to the author's race, gender, religion, nationality, institution or political views.</li><li>Keep submissions confidential and declare any conflict of interest.</li><li>Investigate complaints and suspected misconduct fairly and promptly.</li></ul>
+    <h3>Duties of reviewers</h3><ul><li>Review objectively and constructively, within the agreed time.</li><li>Keep manuscripts confidential and do not use unpublished material for their own work.</li><li>Decline to review where there is a conflict of interest.</li></ul>
+    <h3>Misconduct</h3><p>Plagiarism, duplicate publication, data fabrication or falsification and citation manipulation are treated as misconduct. Allegations are handled using COPE flowcharts and may lead to rejection, correction or retraction. Concerns can be raised with the editorial office at ${mail}.</p>`);
+  case "ai-policy": return POL("Generative AI Policy", `
+    <p>${T} recognises that generative AI tools, such as large language models, are increasingly used in research and writing. This policy sets out how they may be used.</p>
+    <h3>Authors</h3><ul>
+      <li>AI tools cannot be listed as authors, because they cannot take responsibility for the work.</li>
+      <li>AI tools may be used to improve language and readability. Any other use, such as generating text, summarising sources, analysing data or drafting arguments, must be disclosed in a statement at the end of the manuscript naming the tool and how it was used.</li>
+      <li>Authors are fully responsible for the accuracy of all content, including every citation. Fabricated or unverifiable references are treated as misconduct.</li></ul>
+    <h3>Reviewers and editors</h3><ul>
+      <li>Reviewers and editors must not upload manuscripts, or any part of them, to generative AI tools, as this breaches confidentiality.</li>
+      <li>Review reports and editorial decisions must reflect the reviewer's and editor's own judgement.</li></ul>
+    <p>The journal may use screening tools to detect undisclosed AI-generated content. This policy will be updated as practice develops.</p>`);
+  case "apc": { const a = j.apc || {};
+    return POL("Article Processing Charges", `
+    <p>${T} is an open-access journal: readers pay nothing to read or download articles. To cover the costs of peer review management, copy-editing, typesetting, hosting and archiving, the journal charges an article processing charge (APC) for accepted manuscripts.</p>
+    <div class="fee"><div><b>No charge</b><span>Submission and review</span></div><div><b>${a.amount ? esc(a.amount) : "To be announced"}</b><span>Article processing charge, payable only after acceptance</span></div></div>
+    <p>${a.waiver ? esc(a.waiver) : "Authors who are unable to pay may request a full or partial waiver when they submit. Waiver requests do not affect editorial decisions, which are made independently of payment."}</p>
+    <p>Payment details are sent with the letter of acceptance. For enquiries, contact ${mail}.</p>`); }
+  case "indexing": return POL("Abstracting and Indexing", (j.indexing && j.indexing.length)
+    ? `<p>${T} is abstracted and indexed in:</p><ul>${j.indexing.map(s => `<li>${esc(s)}</li>`).join("")}</ul><p>The journal continues to apply to further indexing services, and this page is updated as each listing is confirmed.</p>`
+    : `<p>${T} is in the process of applying to academic abstracting and indexing services. Confirmed listings will be published on this page.</p><p>All articles carry full metadata to support discovery by academic search engines and databases.</p>`);
+  case "open-access": return POL("Open Access Policy", `
+    <p>${T} provides immediate open access to all of its content, on the principle that making research freely available to the public supports a greater global exchange of knowledge.</p>
+    <p>Anyone may read, download, copy, distribute, print, search or link to the full text of articles without charge and without registration, in line with the Budapest Open Access Initiative definition of open access.</p>
+    <p>Articles are published under ${esc(PUBLISHER.licence)}. See <a href="#/j/${j.id}/copyright">Copyright and Licensing</a>.</p>`);
+  case "copyright": return POL("Copyright and Licensing", `
+    <p>Authors who publish in ${T} keep copyright in their work and grant the journal the right of first publication.</p>
+    <p>Articles are published under ${esc(PUBLISHER.licence)}. Anyone may share and adapt the work for any purpose, including commercially, provided the author and the original publication in ${T} are properly credited.</p>
+    <ul><li>Authors may deposit the published version in institutional or subject repositories and on personal websites, with a citation to the journal.</li>
+      <li>Authors may enter into separate arrangements for non-exclusive distribution of the published version, such as a book chapter, with acknowledgement of first publication in the journal.</li>
+      <li>Authors are responsible for obtaining permission to reproduce any third-party material in their article.</li></ul>`);
+  case "plagiarism": return POL("Plagiarism Policy", `
+    <p>${T} does not accept plagiarised work. Every submission is checked with similarity-detection software before review and again before publication.</p>
+    <ul><li>Plagiarism includes copying text, ideas or data without attribution, close paraphrasing, and reusing one's own published work without citation (self-plagiarism).</li>
+      <li>A similarity report is assessed by the editors in context. As a guide, manuscripts with an overall similarity above 20%, or substantial matching from a single source, are returned to the author or declined.</li>
+      <li>If plagiarism is found after publication, the journal will follow COPE guidance, which may result in a correction or retraction and notification of the author's institution.</li></ul>`);
+  case "errata": return POL("Errata and Corrigendum", `
+    <p>${T} maintains the integrity of the published record. Once published, an article is not changed; errors are corrected through a formal notice linked to the original article.</p>
+    <ul><li><b>Erratum:</b> a correction of an error introduced by the journal during production.</li>
+      <li><b>Corrigendum:</b> a correction of a significant error made by the author(s), requested by the author or identified by the editors.</li>
+      <li><b>Retraction:</b> issued when findings are unreliable or the article involves misconduct. The article remains available, clearly marked as retracted.</li>
+      <li><b>Expression of concern:</b> issued while an investigation is in progress.</li></ul>
+    <p>To report an error in a published article, write to ${mail} with the article title, the error and the proposed correction.</p>`);
+  case "contact": return POL("Contact Us", `
+    <p>For questions about submissions, reviews or published articles in ${T}, contact the editorial office.</p>
+    <div class="fee"><div><span>Email</span><b style="font-size:18px"><a href="mailto:${jEmail(j)}">${esc(jEmail(j))}</a></b></div>
+      ${j.board[0] ? `<div><span>${esc(j.board[0].role)}</span><b style="font-size:18px">${esc(j.board[0].name)}</b></div>` : ""}
+      <div><span>Publisher</span><b style="font-size:18px">${esc(PUBLISHER.name)}</b></div></div>
+    <p>${esc(PUBLISHER.address)}<br>${esc(PUBLISHER.phone)}</p>
+    <p><a class="btn btn-j" href="mailto:${jEmail(j)}?subject=${encodeURIComponent(j.short + " enquiry")}">Email the editorial office</a></p>`);
+  }
+  return null;
 }
 function jContent(j, tab){
   const latest = j.issues[0];
@@ -717,14 +856,16 @@ function jContent(j, tab){
       <div class="toc">${is.articles.map(a => artItem({...a, j, is}, false)).join("")}</div>`;
   }
   if (tab === "about"){
-    return `<div class="prose"><h2 style="margin-top:0">Aims and scope</h2><p>${esc(j.blurb)}</p>
-      <p>The journal welcomes work on the following areas:</p><ul>${j.scope.map(s => `<li>${esc(s)}</li>`).join("")}</ul>
-      <h2>Peer review</h2><p>Research articles undergo double-blind review by at least two independent referees. Case notes and book reviews are reviewed by the editors.</p>
-      <h2>How to cite this journal</h2><p>The abbreviated title is <i>${esc(j.citeAbbr)}</i>.</p></div>`;
+    if (j.pages && j.pages.about) return POL("About the Journal", j.pages.about);
+    return POL("About the Journal", `<p><i>${esc(j.title)}</i> (${esc(j.short)}) is a peer-reviewed, open-access law journal published ${esc(j.frequency.toLowerCase())} by ${esc(PUBLISHER.name)}${j.since ? ", first published in " + j.since : ""}.</p>
+      <p>${esc(j.blurb)}</p>
+      <div class="fee"><div><span>Print</span><b style="font-size:18px">${esc(j.issn.print)}</b></div><div><span>Online</span><b style="font-size:18px">${esc(j.issn.online)}</b></div><div><span>Frequency</span><b style="font-size:18px">${esc(j.frequency)}</b></div><div><span>Cite as</span><b style="font-size:18px"><i>${esc(j.citeAbbr)}</i></b></div></div>
+      <p>Read more about the journal's <a href="#/j/${j.id}/scope">focus and scope</a>, <a href="#/j/${j.id}/peer-review">peer review process</a> and <a href="#/j/${j.id}/board">editorial team</a>.</p>`);
   }
+  { const pol = policyPage(j, tab); if (pol) return pol; }
   if (tab === "board"){
-    return j.board.length ? `<div class="board">${j.board.map(b => `<div><div class="role">${esc(b.role)}</div><div class="nm">${esc(b.name)}</div><div class="af">${esc(b.affil)}</div></div>`).join("")}</div>`
-      : `<div class="empty"><h3>The editorial board will be announced soon</h3><p class="note">Interested in serving as a reviewer? Write to <a href="mailto:${PUBLISHER.email}">${esc(PUBLISHER.email)}</a>.</p></div>`;
+    return `<h2 style="font-size:30px">Editorial Team</h2>` + (j.board.length ? `<div class="board">${j.board.map(b => `<div><div class="role">${esc(b.role)}</div><div class="nm">${esc(b.name)}</div><div class="af">${esc(b.affil)}</div></div>`).join("")}</div>`
+      : `<div class="empty"><h3>The editorial board will be announced soon</h3><p class="note">Interested in serving as a reviewer? Write to <a href="mailto:${PUBLISHER.email}">${esc(PUBLISHER.email)}</a>.</p></div>`);
   }
   if (tab === "submit"){
     return `<div class="prose"><h2 style="margin-top:0">Submit to ${esc(j.title)}</h2>
@@ -740,9 +881,10 @@ function emptyIssue(j){
   return `<div class="empty"><h3>The first issue is in preparation</h3><p class="note">${esc(j.title)} is accepting submissions for ${esc(j.cfp)}.</p>
     <a class="btn btn-j" href="#/j/${j.id}/submit">Submit a manuscript</a></div>`;
 }
-function jSidebar(j){
+function jSidebar(j, tab){
   return `<aside>
-    ${j.layout === "core" ? "" : `<div class="side-cover">${coverHTML(j, 18)}</div>`}
+    ${jMenu(j, tab)}
+    ${j.layout === "core" ? "" : `<div class="side-cover" style="margin-top:20px">${coverHTML(j, 18)}</div>`}
     <div class="card"><h3>Journal information</h3><dl class="kv">
       <dt>Print</dt><dd>${esc(j.issn.print)}</dd><dt>Online</dt><dd>${esc(j.issn.online)}</dd>
       <dt>Frequency</dt><dd>${esc(j.frequency)}</dd><dt>Cite as</dt><dd><i>${esc(j.citeAbbr)}</i></dd>
@@ -754,24 +896,24 @@ function jSidebar(j){
 function pageJournal(j, tab){
   document.documentElement.style.setProperty("--jc", j.color);
   const tabs = journalTabs(j);
-  const cur = tab.startsWith("issue-") ? "archive" : tab;
+  const cur = tab.startsWith("issue-") ? "archive" : (tab === "issue" && j.layout === "core") ? "" : tab;
   const nav = tabs.map(([k, l]) => `<a href="#/j/${j.id}${k ? "/" + k : ""}" ${k === cur ? 'aria-current="page"' : ""}>${l}</a>`).join("");
   if (j.layout === "review"){
     return `<div class="rv-mast"><div class="wrap">
         <a class="pub" href="#/"><img src="${EMBLEM}" alt="">Published by ${esc(PUBLISHER.name)}</a>
         <h1>${esc(j.title)}</h1><div class="tag">${esc(j.tagline)}</div>
         <nav class="rv-nav" aria-label="${esc(j.short)}">${nav}</nav></div></div>
-      <div class="rv-body"><div class="wrap two"><div>${jContent(j, tab)}</div>${jSidebar(j)}</div></div>`;
+      <div class="rv-body"><div class="wrap two"><div>${jMenuMobile(j, tab)}${jContent(j, tab)}</div>${jSidebar(j, tab)}</div></div>`;
   }
   return `<div class="co-bar"><div class="wrap"><a href="#/">Afrocentric</a> / <a href="#/journals">Journals</a> / ${esc(j.short)}</div></div>
     <div class="co-banner"><div class="wrap">
       <div class="cv">${coverHTML(j, 11)}</div>
       <div><h1>${esc(j.title)}</h1>
         <div class="meta"><span><b>Online</b> ${esc(j.issn.online)}</span><span><b>Print</b> ${esc(j.issn.print)}</span><span><b>Frequency</b> ${esc(j.frequency)}</span>${j.board[0] ? `<span><b>Editor</b> ${esc(j.board[0].name)}</span>` : ""}</div></div>
-      <div class="acts"><a class="btn btn-j" href="#/j/${j.id}/submit">Submit your article</a><a class="btn btn-ghost" href="#/j/${j.id}/about">Aims and scope</a></div>
+      <div class="acts"><a class="btn btn-j" href="#/j/${j.id}/submit">Submit your article</a><a class="btn btn-ghost" href="#/j/${j.id}/scope">Focus and scope</a></div>
     </div></div>
     <nav class="co-tabs" aria-label="${esc(j.short)}"><div class="wrap">${nav}</div></nav>
-    <div class="co-body"><div class="wrap two"><div>${jContent(j, tab)}</div>${jSidebar(j)}</div></div>`;
+    <div class="co-body"><div class="wrap two"><div>${jMenuMobile(j, tab)}${jContent(j, tab)}</div>${jSidebar(j, tab)}</div></div>`;
 }
 
 function pageArticle(j, key){
